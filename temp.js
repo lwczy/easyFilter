@@ -96,18 +96,11 @@ function mapValueDescriber(obj, map){
   if(obj instanceof ValueDescriber){
     return map(obj[inner]);
   }
+  if(typeof obj !== 'object'){
+    return obj;
+  }
   for(const key in obj){
-    if(obj[key] instanceof ValueDescriber){
-      obj[key] = map(obj[key][inner]);
-      continue;
-    }
-    if(obj[key] instanceof Object){
-      extractValueDescriber(obj[key], map);
-      continue;
-    }
-    if(Array.isArray(obj[key])){
-      obj[key].forEach(item => extractValueDescriber(item, map));
-    }
+    obj[key] = mapValueDescriber(obj[key], map);
   }
   return obj;
 }
@@ -200,3 +193,21 @@ console.log(easyFilter(testData2, input => (
     value: item[1]
   })).value
 )))
+
+console.log(easyFilter(testData1, input => ({
+  ids: input.data[any].id,
+  datas: [input.data[0].data, input.data[1].data],
+  obj: {
+    a: input.data[0].data,
+    b: input.data[1].data,
+  },
+  number: 1234,
+  a:{
+    b:{
+      c:{
+        d:"aaa",
+        e: [[[[[[input.data[0].data]]]]]]
+      }
+    }
+  }
+})))
