@@ -47,6 +47,9 @@ const any = Symbol('any');
 const anyFun = () => true;
 const map = Symbol('map');
 const where = Symbol('where');
+const branch = Symbol('branch');
+const assign = Symbol('assign');
+const filter = Symbol('filter');
 const inner = Symbol('inner');
 const asArray = Symbol('asArray');
 const cvtType = Symbol('cvtType');
@@ -83,6 +86,21 @@ function ValueCollector(path = []){
           case cvtType: return function(lambda){ return ValueCollector([...path, {type: 'cvtType', lambda}]); };
           case asArray: return ValueCollector([...path, asArray]);
           case where: return function(filter){ return ValueCollector([...path, {type: 'filter', filter}]); };
+          case branch: return function(filter){ return ValueCollector([...path, {type: 'map', lambda: (v, i) => {
+            const branches = filter(v, i);
+            const matched = branches.find(b => b[0]);
+            if(matched){
+              return easyFilter(v, matched[1]);
+            } else {
+              return v;
+            }
+          }}]); };
+          case assign: return function(filter){ return ValueCollector([...path, {type: 'cvtType', lambda: item =>
+              easyAssign(item, filter)
+          }]); };
+          case filter: return function(filter){ return ValueCollector([...path, {type: 'cvtType', lambda: item =>
+            easyFilter(item, filter)
+          }]); };
           case inner: return target;
           default: throw new Error('未知的运算符');
         }
@@ -113,6 +131,7 @@ function getDataThroughtPath(data, path, i = 0){
     } else if(key instanceof Object){
       switch(key.type){
         case 'map':{
+          console.log(data);
           data = data.map(key.lambda);
           break;
         }
@@ -167,6 +186,10 @@ function easyFilter(data, filter) {
   // });
 }
 
+function easyAssign(data, filter){
+  return Object.assign(data, easyFilter(data, filter));
+}
+
 console.log(easyFilter(testData1, input => ({
   num: count(flatten(input.data[where]((_, index) => index % 2).data[any])),
   datas: flatten(input.data[any].data[any])
@@ -211,3 +234,19 @@ console.log(easyFilter(testData1, input => ({
     }
   }
 })))
+
+
+console.log(easyFilter(testData2, input => (
+  input[asArray][branch]( (v, i) => [
+    [i === 1, input => input[0][cvtType](v => v + 10)],
+    [i <= 10, input => input[0][cvtType](v => v + 20)]
+  ])
+)))
+
+console.dir(easyAssign(testData1, input => (
+  {
+    data: input.data[any][assign](input => ({
+      data: input.data[any][cvtType](item => '' + item + '1111')
+    }))
+  }
+)), {depth: null})
